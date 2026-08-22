@@ -1,0 +1,19 @@
+# This repo scans itself with gitleaks only, not with its own identity gate.
+#
+# The gate needs an IDENTITY_PATTERN secret, and secrets are not available to workflows
+# triggered by a pull request from a fork. On a public repo that would fail every external
+# contribution while protecting nothing: there is no owner identity here by design, which is
+# the entire reason these workflows could be published.
+name: self-scan
+on: [push, pull_request]
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Run gitleaks
+        run: |
+          docker run --rm -v "$PWD:/repo" -w /repo ghcr.io/gitleaks/gitleaks:latest \
+            dir --config /repo/.gitleaks.toml --no-banner --redact --exit-code 1 .

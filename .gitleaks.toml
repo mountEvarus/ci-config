@@ -1,0 +1,19 @@
+# Baseline gitleaks config for the personal-OS. Vendored into each repo root (the reusable
+# secret-scan workflow scans the caller's own checkout, so every repo needs its own copy — keep
+# them in sync). Extends gitleaks' built-in high-signal ruleset and allowlists the few known-safe
+# patterns so CI fails only on genuine leaks.
+title = "personal-os baseline"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known-safe, non-secret patterns"
+paths = [
+  '''.*\.env\.example$''',   # committed templates carry no real values
+  '''.*_test\.go$''',         # Go test fixtures use dummy tokens/JWTs, not real secrets
+]
+regexes = [
+  '''postgres://postgres:postgres@''',        # local dev DSN
+  '''POSTGRES_PASSWORD:\s*postgres\b''',       # local dev compose default
+]

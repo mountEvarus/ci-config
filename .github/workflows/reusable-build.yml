@@ -1,0 +1,61 @@
+# Reusable BUILD-ONLY workflow: build an image and push it to GHCR. It deliberately does not
+# deploy, so calling repos hold no deploy secrets — only the automatic GITHUB_TOKEN, plus
+# SUBMODULES_TOKEN if the repo has private submodules. Something else (Watchtower, a pull, a
+# scheduler) is responsible for picking the new image up.
+#
+# Caller, in .github/workflows/build.yml:
+#
+#   name: build
+#   on:
+#     push: { branches: [main], paths: ['api/**', 'Dockerfile', '.github/workflows/build.yml'] }
+#     workflow_dispatch:
+#   jobs:
+#     build:
+#       uses: <owner>/ci-config/.github/workflows/reusable-build.yml@main
+#       with:
+#         image-name: ghcr.io/<owner>/<service>
+#       secrets: inherit
+#
+# This repo is public, so no "Accessible from repositories owned by ..." setting is needed for
+# private repos to call it.
+name: reusable-build
+on:
+  workflow_call:
+    inputs:
+      image-name:
+        description: Full GHCR image ref without tag, e.g. ghcr.io/<owner>/<service>
+        required: true
+        type: string
+      context:
+        description: Docker build context (some repos keep the Dockerfile under ./api)
+        required: false
+        type: string
+        default: .
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Fetch private submodules
+        if: ${{ hashFiles('.gitmodules') != '' }}
+        env:
+          TOKEN: ${{ secrets.SUBMODULES_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then echo "no SUBMODULES_TOKEN set — skipping submodule fetch"; exit 0; fi
+          git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
+          git submodule update --init --recursive
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: ${{ inputs.context }}
+          push: true
+          tags: |
+            ${{ inputs.image-name }}:${{ github.sha }}
+            ${{ inputs.image-name }}:latest
