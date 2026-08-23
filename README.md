@@ -27,8 +27,8 @@ jobs:
     secrets: inherit
 ```
 
-Fetches private submodules first when the repo has a `.gitmodules` and a `SUBMODULES_TOKEN`
-secret is available; skips that step quietly otherwise.
+Fetches submodules first when the repo has a `.gitmodules`. All shared config packages are
+public, so this needs no token.
 
 ## `secret-scan.yml`
 
