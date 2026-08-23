@@ -1,7 +1,6 @@
 # Reusable BUILD-ONLY workflow: build an image and push it to GHCR. It deliberately does not
-# deploy, so calling repos hold no deploy secrets — only the automatic GITHUB_TOKEN, plus
-# SUBMODULES_TOKEN if the repo has private submodules. Something else (Watchtower, a pull, a
-# scheduler) is responsible for picking the new image up.
+# deploy, so calling repos hold no deploy secrets — only the automatic GITHUB_TOKEN. Something
+# else (Watchtower, a pull, a scheduler) is responsible for picking the new image up.
 #
 # Caller, in .github/workflows/build.yml:
 #
@@ -39,14 +38,9 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-      - name: Fetch private submodules
+      - name: Fetch submodules
         if: ${{ hashFiles('.gitmodules') != '' }}
-        env:
-          TOKEN: ${{ secrets.SUBMODULES_TOKEN }}
-        run: |
-          if [ -z "$TOKEN" ]; then echo "no SUBMODULES_TOKEN set — skipping submodule fetch"; exit 0; fi
-          git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
-          git submodule update --init --recursive
+        run: git submodule update --init --recursive
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
