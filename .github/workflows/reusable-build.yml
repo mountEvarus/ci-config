@@ -46,13 +46,19 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # Written into the build context, not passed as a build arg. A build arg reaches
+      # the image through an ENV layer that can be served from cache, and foreman was
+      # observed reporting the SHA of an older build while running newer code. A file
+      # whose contents change every build cannot have its COPY layer reused.
       - name: Build stamp
         id: stamp
-        run: echo "built-at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
-      # Passed to every build so a service can report which commit it is running.
-      # A Dockerfile that declares the ARGs can surface them; one that doesn't gets
-      # a harmless "build-args were not consumed" warning. See mountEvarus/foreman
-      # for the three lines that pick them up.
+        run: |
+          BUILT_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          echo "built-at=$BUILT_AT" >> "$GITHUB_OUTPUT"
+          printf '{"sha":"%s","builtAt":"%s"}\n' "${{ github.sha }}" "$BUILT_AT" \
+            > "${{ inputs.context }}/.build-version"
+      # The build args stay as a fallback for services that read them; .build-version
+      # in the context is the reliable path. See mountEvarus/foreman for both.
       - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: ${{ inputs.context }}
