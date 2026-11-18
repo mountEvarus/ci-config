@@ -1,0 +1,16 @@
+# Quality gate: lints every workflow on every pull request. These workflows run in every repo,
+# so a broken one breaks CI across the fleet. Needed before atlas's doorman may merge pull
+# requests here.
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:latest -color
